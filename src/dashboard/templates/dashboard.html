@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{ app_name or "Cyber Defense Dashboard" }}</title>
+
+    <link
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+        rel="stylesheet"
+        integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
+        crossorigin="anonymous"
+    />
+
+    <style>
+        :root {
+            --bg-primary: #05070d;
+            --bg-secondary: #0b1220;
+            --bg-card: #111a2b;
+            --text-primary: #e7eefc;
+            --text-muted: #93a1bf;
+            --accent-info: #3ea6ff;
+            --accent-warning: #f6c453;
+            --accent-success: #31d0aa;
+            --accent-danger: #ff6b6b;
+            --border-soft: rgba(255, 255, 255, 0.08);
+        }
+
+        body {
+            background: radial-gradient(circle at top right, #0f1a33 0%, var(--bg-primary) 45%), var(--bg-primary);
+            color: var(--text-primary);
+            font-family: "Inter", "Segoe UI", Roboto, Arial, sans-serif;
+            min-height: 100vh;
+        }
+
+        .dashboard-wrapper {
+            padding: 2rem 0;
+        }
+
+        .panel {
+            background: linear-gradient(145deg, rgba(17, 26, 43, 0.95), rgba(9, 14, 24, 0.95));
+            border: 1px solid var(--border-soft);
+            border-radius: 1rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+        }
+
+        .stat-card {
+            padding: 1.25rem;
+            height: 100%;
+        }
+
+        .stat-title {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            letter-spacing: 0.02em;
+            margin-bottom: 0.4rem;
+        }
+
+        .stat-value {
+            font-size: 1.9rem;
+            font-weight: 700;
+            margin: 0;
+        }
+
+        .stat-total .stat-value { color: var(--accent-info); }
+        .stat-active .stat-value { color: var(--accent-warning); }
+        .stat-mitigated .stat-value { color: var(--accent-success); }
+        .stat-resolved .stat-value { color: var(--accent-danger); }
+
+        .section-title {
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+
+        .table {
+            --bs-table-bg: transparent;
+            --bs-table-color: var(--text-primary);
+            --bs-table-border-color: var(--border-soft);
+        }
+
+        .table thead th {
+            color: var(--text-muted);
+            font-weight: 600;
+            border-bottom: 1px solid var(--border-soft);
+        }
+
+        .badge-status {
+            text-transform: capitalize;
+            padding: 0.4rem 0.6rem;
+            border-radius: 0.5rem;
+        }
+
+        .status-detected,
+        .status-active {
+            background-color: rgba(246, 196, 83, 0.18);
+            color: #ffd778;
+        }
+
+        .status-mitigated {
+            background-color: rgba(49, 208, 170, 0.2);
+            color: #7ff7da;
+        }
+
+        .status-resolved {
+            background-color: rgba(62, 166, 255, 0.18);
+            color: #8fd0ff;
+        }
+
+        .footer-note {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container dashboard-wrapper">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h1 class="h3 mb-1">{{ app_name or "Cyber Defense Dashboard" }}</h1>
+                <p class="text-secondary mb-0">AI-Powered Autonomous Security Monitoring &amp; Self-Healing</p>
+            </div>
+            <span class="badge bg-dark border border-secondary-subtle px-3 py-2">Auto-refresh: 5s</span>
+        </div>
+
+        <div class="row g-3 mb-4">
+            <div class="col-12 col-md-6 col-xl-3">
+                <div class="panel stat-card stat-total">
+                    <p class="stat-title">Total Incidents</p>
+                    <p id="statTotal" class="stat-value">0</p>
+                </div>
+            </div>
+            <div class="col-12 col-md-6 col-xl-3">
+                <div class="panel stat-card stat-active">
+                    <p class="stat-title">Active Incidents</p>
+                    <p id="statActive" class="stat-value">0</p>
+                </div>
+            </div>
+            <div class="col-12 col-md-6 col-xl-3">
+                <div class="panel stat-card stat-mitigated">
+                    <p class="stat-title">Mitigated</p>
+                    <p id="statMitigated" class="stat-value">0</p>
+                </div>
+            </div>
+            <div class="col-12 col-md-6 col-xl-3">
+                <div class="panel stat-card stat-resolved">
+                    <p class="stat-title">Resolved</p>
+                    <p id="statResolved" class="stat-value">0</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-3 mb-4">
+            <div class="col-12 col-xl-5">
+                <div class="panel p-3 h-100">
+                    <h2 class="h5 section-title">Incident Status Overview</h2>
+                    <canvas id="statusChart" height="220" aria-label="Incident status chart" role="img"></canvas>
+                </div>
+            </div>
+            <div class="col-12 col-xl-7">
+                <div class="panel p-3 h-100">
+                    <h2 class="h5 section-title">Recent Incidents</h2>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Incident ID</th>
+                                    <th scope="col">Source IP</th>
+                                    <th scope="col">Attack Type</th>
+                                    <th scope="col">Status</th>
+                                    <th scope="col">Created At</th>
+                                </tr>
+                            </thead>
+                            <tbody id="incidentsTableBody">
+                                <tr>
+                                    <td colspan="5" class="text-center text-secondary py-4">Loading incidents...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <p class="footer-note mb-0">Dashboard data source: <code>/api/stats</code> and <code>/api/incidents</code>.</p>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+    <script>
+        const statElements = {
+            total: document.getElementById("statTotal"),
+            active: document.getElementById("statActive"),
+            mitigated: document.getElementById("statMitigated"),
+            resolved: document.getElementById("statResolved"),
+        };
+
+        const tableBody = document.getElementById("incidentsTableBody");
+
+        const chartContext = document.getElementById("statusChart");
+        const statusChart = new Chart(chartContext, {
+            type: "bar",
+            data: {
+                labels: ["Active", "Mitigated", "Resolved"],
+                datasets: [{
+                    label: "Incidents",
+                    data: [0, 0, 0],
+                    backgroundColor: [
+                        "rgba(246, 196, 83, 0.7)",
+                        "rgba(49, 208, 170, 0.7)",
+                        "rgba(62, 166, 255, 0.7)",
+                    ],
+                    borderColor: [
+                        "rgba(246, 196, 83, 1)",
+                        "rgba(49, 208, 170, 1)",
+                        "rgba(62, 166, 255, 1)",
+                    ],
+                    borderWidth: 1,
+                    borderRadius: 6,
+                }],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                },
+                scales: {
+                    x: {
+                        ticks: { color: "#93a1bf" },
+                        grid: { color: "rgba(255,255,255,0.08)" },
+                    },
+                    y: {
+                        beginAtZero: true,
+                        ticks: { color: "#93a1bf", precision: 0 },
+                        grid: { color: "rgba(255,255,255,0.08)" },
+                    },
+                },
+            },
+        });
+
+        const formatTimestamp = (value) => {
+            if (!value) {
+                return "—";
+            }
+
+            const date = new Date(value);
+            if (Number.isNaN(date.getTime())) {
+                return value;
+            }
+
+            return date.toLocaleString();
+        };
+
+        const statusBadgeClass = (status) => {
+            const normalized = (status || "unknown").toLowerCase();
+            if (normalized === "mitigated") return "status-mitigated";
+            if (normalized === "resolved") return "status-resolved";
+            if (normalized === "detected" || normalized === "active") return "status-active";
+            return "status-detected";
+        };
+
+        const renderIncidentsTable = (incidents) => {
+            if (!Array.isArray(incidents) || incidents.length === 0) {
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="text-center text-secondary py-4">No incidents found.</td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tableBody.innerHTML = incidents
+                .map((incident) => {
+                    const sourceIp = incident?.attack_event?.source_ip || "Unknown";
+                    const attackType = incident?.attack_event?.attack_type || "Unknown";
+                    const status = incident?.status || "unknown";
+
+                    return `
+                        <tr>
+                            <td>#${incident.id}</td>
+                            <td><code>${sourceIp}</code></td>
+                            <td>${attackType}</td>
+                            <td>
+                                <span class="badge-status ${statusBadgeClass(status)}">${status}</span>
+                            </td>
+                            <td>${formatTimestamp(incident.created_at)}</td>
+                        </tr>
+                    `;
+                })
+                .join("");
+        };
+
+        const updateStats = (stats) => {
+            statElements.total.textContent = stats.total_incidents ?? 0;
+            statElements.active.textContent = stats.active_count ?? 0;
+            statElements.mitigated.textContent = stats.mitigated_count ?? 0;
+            statElements.resolved.textContent = stats.resolved_count ?? 0;
+
+            statusChart.data.datasets[0].data = [
+                stats.active_count ?? 0,
+                stats.mitigated_count ?? 0,
+                stats.resolved_count ?? 0,
+            ];
+            statusChart.update();
+        };
+
+        const loadStats = async () => {
+            const response = await fetch("/api/stats", {
+                method: "GET",
+                headers: { "Accept": "application/json" },
+            });
+
+            if (!response.ok) {
+                throw new Error(`Failed to load stats: ${response.status}`);
+            }
+
+            const payload = await response.json();
+            return payload?.data || {};
+        };
+
+        const loadIncidents = async () => {
+            const response = await fetch("/api/incidents", {
+                method: "GET",
+                headers: { "Accept": "application/json" },
+            });
+
+            if (!response.ok) {
+                throw new Error(`Failed to load incidents: ${response.status}`);
+            }
+
+            const payload = await response.json();
+            return payload?.data || [];
+        };
+
+        const refreshDashboard = async () => {
+            try {
+                const [stats, incidents] = await Promise.all([loadStats(), loadIncidents()]);
+                updateStats(stats);
+                renderIncidentsTable(incidents);
+            } catch (error) {
+                console.error("Dashboard refresh failed", error);
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="text-center text-danger py-4">
+                            Unable to load dashboard data. Retrying...
+                        </td>
+                    </tr>
+                `;
+            }
+        };
+
+        refreshDashboard();
+        setInterval(refreshDashboard, 5000);
+    </script>
+</body>
+</html>
